@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>冲印任务 · 蓝证照相馆</title>
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="wrap wide">
+  <div class="grid" style="grid-template-columns: 320px 1fr; align-items:start;">
+    <div class="grid" style="gap:16px;">
+      <div class="card">
+        <h2>打印机</h2>
+        <div class="kv"><span class="k">剩余纸张</span><b id="paper" style="font-size:22px;">—</b></div>
+        <div class="btn-row" style="margin-top:12px;">
+          <button class="btn btn-primary" id="refillBtn">加纸 +10</button>
+          <button class="btn btn-ghost" id="depleteBtn">模拟缺纸</button>
+        </div>
+        <div class="muted small" style="margin-top:10px;">缺纸时任务标记失败，后台每 5 秒自动重试，加纸后自动恢复。</div>
+      </div>
+      <div class="card">
+        <h2>加印</h2>
+        <div class="field">
+          <label>已冲印订单</label>
+          <select id="reprintOrder"></select>
+        </div>
+        <div class="field">
+          <label>加印份数</label>
+          <input type="number" id="reprintCopies" value="1" min="1" max="8">
+        </div>
+        <button class="btn btn-primary" id="reprintBtn" style="width:100%;">创建加印任务</button>
+        <div class="muted small" style="margin-top:8px;">已冲印订单不能改选原片，只能加印；加印任务关联原始冲印任务。</div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>冲印任务 <span class="sub">每 3 秒刷新</span></h2>
+      <div id="tasks"></div>
+    </div>
+  </div>
+</div>
+<script src="/js/common.js"></script>
+<script>
+renderTopbar('冲印任务');
+const $ = (id) => document.getElementById(id);
+
+const TASK_STATUS = {
+  PENDING: ['排队中', 'blue'], PRINTING: ['冲印中', 'blue'],
+  SUCCESS: ['成功', 'ok'], FAILED: ['失败', 'bad'], CANCELLED: ['已取消', ''],
+};
+
+async function load() {
+  try {
+    const [tasks, printer, orders] = await Promise.all([
+      api('/api/print/tasks'), api('/api/printer'), api('/api/orders'),
+    ]);
+    $('paper').textContent = printer.paper + ' 张';
+    $('paper').style.color = printer.paper === 0 ? 'var(--bad)' : 'var(--ink)';
+    $('tasks').innerHTML = tasks.length ? `<table class="list"><thead>
+      <tr><th>任务</th><th>类型</th><th>订单</th><th>份数</th><th>状态</th><th>尝试</th><th>操作</th></tr></thead>
+      <tbody>${tasks.map(t => {
+        const [label, color] = TASK_STATUS[t.status] || [t.status, ''];
+        return `<tr>
+          <td class="mono small">${t.id.slice(0, 10)}</td>
+          <td>${t.kind === 'REPRINT' ? `<span class="badge blue">加印</span><div class="small muted mono">关联 ${String(t.reprint_of || '').slice(0, 10)}</div>` : '<span class="badge">冲印</span>'}</td>
+          <td><b>${t.queue_no}</b><div class="small muted">${t.spec_name}</div></td>
+          <td>${t.copies}</td>
+          <td><span class="badge ${color}">${label}</span>${t.fail_reason ? `<div class="small" style="color:var(--bad);">${t.fail_reason === 'OUT_OF_PAPER' ? '缺纸' : t.fail_reason}</div>` : ''}</td>
+          <td>${t.attempts}</td>
+          <td>${t.status === 'FAILED' ? `<button class="btn btn-ghost" style="padding:5px 12px;" onclick="retry('${t.id}')">重试</button>` : ''}</td>
+        </tr>`; }).join('')}</tbody></table>` : '<div class="empty">暂无冲印任务</div>';
+    const printed = orders.filter(o => o.print_tasks.some(t => t.kind === 'PRINT' && t.status === 'SUCCESS'));
+    $('reprintOrder').innerHTML = printed.length
+      ? printed.map(o => `<option value="${o.id}">${o.queue_no} · ${o.spec.name}（${o.status === 'READY' ? '待取件' : o.status === 'PICKED_UP' ? '已取件' : o.status}）</option>`).join('')
+      : '<option value="">暂无可加印订单</option>';
+  } catch (e) { $('tasks').innerHTML = `<div class="empty">${e.message}</div>`; }
+}
+
+window.retry = async (tid) => {
+  try { const t = await api(`/api/print/tasks/${tid}/retry`, { method: 'POST' });
+    t.status === 'SUCCESS' ? ok('冲印成功') : err(`仍失败：${t.fail_reason === 'OUT_OF_PAPER' ? '缺纸' : t.fail_reason}`);
+    load();
+  } catch (e) { err(e); }
+};
+
+$('refillBtn').onclick = async () => {
+  try { const r = await api('/api/printer/paper', { method: 'POST', body: { action: 'refill', sheets: 10 } });
+    ok(`已加纸，当前 ${r.paper} 张`); load(); } catch (e) { err(e); }
+};
+$('depleteBtn').onclick = async () => {
+  try { await api('/api/printer/paper', { method: 'POST', body: { action: 'deplete' } }); toast('已模拟缺纸', 'err'); load(); }
+  catch (e) { err(e); }
+};
+$('reprintBtn').onclick = async () => {
+  const oid = $('reprintOrder').value;
+  if (!oid) return err('暂无可加印的订单');
+  try {
+    const t = await api(`/api/orders/${oid}/reprints`, { method: 'POST', body: { copies: Number($('reprintCopies').value) } });
+    t.status === 'SUCCESS' ? ok('加印完成') : toast(`加印任务已创建，状态：${t.status}`, 'err');
+    load();
+  } catch (e) { err(e); }
+};
+
+load();
+setInterval(load, 3000);
+</script>
+</body>
+</html>

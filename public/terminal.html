@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>拍摄终端 · 蓝证照相馆</title>
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body class="page-with-bar">
+<div class="wrap wide">
+  <div class="grid" style="grid-template-columns: 380px 1fr; align-items:start;">
+    <div class="grid" style="gap:16px;">
+      <div class="card">
+        <h2>① 开单取号</h2>
+        <div class="field">
+          <label>证件规格</label>
+          <select id="specSel"></select>
+        </div>
+        <div class="field">
+          <label>冲印份数</label>
+          <div class="btn-row" style="align-items:center;">
+            <button class="btn btn-ghost" id="copyMinus">−</button>
+            <span id="copyNum" style="font-size:20px;font-weight:700;min-width:28px;text-align:center;">1</span>
+            <button class="btn btn-ghost" id="copyPlus">＋</button>
+            <span class="price-tag" id="priceTag" style="margin-left:auto;"></span>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-lg" id="createBtn" style="width:100%;">下单并取号</button>
+        <div id="receipt" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="card">
+        <h2>② 叫号</h2>
+        <div class="field">
+          <label>拍摄设备</label>
+          <select id="devSel"></select>
+        </div>
+        <button class="btn btn-primary" id="callBtn" style="width:100%;">叫下一号</button>
+        <div class="muted small" style="margin-top:8px;">设备离线或被占用时将提示原因。</div>
+      </div>
+
+      <div class="card">
+        <h2>设备管理 <span class="sub">模拟离线/恢复</span></h2>
+        <div id="devList"></div>
+      </div>
+    </div>
+
+    <div class="grid" style="gap:16px;">
+      <div class="card">
+        <h2>③ 拍摄 <span class="sub" id="shootHint"></span></h2>
+        <div id="activeBox"><div class="empty">暂无服务中的订单，请先叫号</div></div>
+      </div>
+      <div class="card">
+        <h2>等待队列</h2>
+        <div id="waitList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 拍摄终端主操作按钮固定在屏幕下方 -->
+<div class="bottom-bar">
+  <button class="btn btn-primary btn-lg" id="shootBtn" disabled>📸 拍摄一轮</button>
+  <button class="btn btn-ghost btn-lg" id="finishBtn" disabled>结束拍摄 · 进入选片</button>
+  <button class="btn btn-ghost btn-lg" id="gotoSelectBtn" disabled>前往选片 →</button>
+  <button class="btn btn-danger btn-lg" id="releaseBtn" disabled>释放设备</button>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+renderTopbar('拍摄终端');
+
+let meta = null;
+let copies = 1;
+let activeOrder = null;   // 当前设备服务中的订单（详单）
+let activeDeviceId = null;
+
+const $ = (id) => document.getElementById(id);
+
+async function loadMeta() {
+  meta = await api('/api/meta');
+  $('specSel').innerHTML = meta.specs.map(s =>
+    `<option value="${s.id}">${s.name} · ${s.width_mm}×${s.height_mm}mm</option>`).join('');
+  renderPrice();
+  renderDevices();
+}
+
+function renderPrice() {
+  const cents = meta.pricing.baseCents + (copies - 1) * meta.pricing.extraCopyCents;
+  $('priceTag').textContent = fmtYuan(cents);
+  $('copyNum').textContent = copies;
+}
+$('copyMinus').onclick = () => { if (copies > 1) { copies--; renderPrice(); } };
+$('copyPlus').onclick = () => { if (copies < meta.pricing.maxCopies) { copies++; renderPrice(); } };
+
+$('createBtn').onclick = async () => {
+  try {
+    const { order, receipt } = await api('/api/orders', {
+      method: 'POST',
+      body: { specId: $('specSel').value, copies },
+    });
+    ok(`已取号 ${order.queue_no}`);
+    $('receipt').innerHTML = `
+      <div class="kv"><span class="k">排队号</span><b>${order.queue_no}</b></div>
+      <div class="kv"><span class="k">付款回执</span><span class="mono">${receipt.receiptNo}</span></div>
+      <div class="kv"><span class="k">金额</span><b>${fmtYuan(receipt.amountCents)}</b></div>`;
+    refresh();
+  } catch (e) { err(e); }
+};
+
+function renderDevices() {
+  const devs = meta.devices;
+  $('devSel').innerHTML = devs.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+  api('/api/queue').then(q => {
+    $('devList').innerHTML = q.devices.map(d => `
+      <div class="kv">
+        <span>${d.name} ${d.serving ? `<span class="badge warn">服务中 ${d.serving.queue_no}</span>` : ''}</span>
+        <span>
+          <span class="badge ${d.status === 'online' ? 'ok' : 'bad'}">${d.status === 'online' ? '在线' : '离线'}</span>
+          <button class="btn btn-ghost" style="padding:4px 10px;font-size:12.5px;"
+            onclick="toggleDevice('${d.id}','${d.status}')">${d.status === 'online' ? '设为离线' : '恢复在线'}</button>
+        </span>
+      </div>`).join('');
+    // 自动跟踪第一台有服务订单的设备
+    const serving = q.devices.find(d => d.serving);
+    if (serving) { activeDeviceId = serving.id; loadActive(serving.serving.id); }
+    else { activeOrder = null; renderActive(); }
+    $('waitList').innerHTML = q.waiting.length
+      ? q.waiting.map(w => `<div class="kv"><span><b>${w.queue_no}</b> · ${w.spec_name}</span><span class="muted">${w.copies} 份</span></div>`).join('')
+      : '<div class="empty">暂无等待顾客</div>';
+  });
+}
+
+window.toggleDevice = async (id, cur) => {
+  try {
+    await api(`/api/devices/${id}/status`, { method: 'POST', body: { status: cur === 'online' ? 'offline' : 'online' } });
+    refresh();
+  } catch (e) { err(e); }
+};
+
+$('callBtn').onclick = async () => {
+  try {
+    await api('/api/queue/call-next', { method: 'POST', body: { deviceId: $('devSel').value } });
+    ok('叫号成功');
+    refresh();
+  } catch (e) { err(e); }
+};
+
+async function loadActive(orderId) {
+  try {
+    activeOrder = await api(`/api/orders/${orderId}`);
+  } catch (e) { activeOrder = null; }
+  renderActive();
+}
+
+function renderActive() {
+  const o = activeOrder;
+  const shooting = o && o.status === 'SHOOTING';
+  const selecting = o && o.status === 'SELECTING';
+  $('shootBtn').disabled = !shooting || o.round >= o.max_rounds;
+  $('finishBtn').disabled = !shooting || !o || o.candidates.length === 0;
+  $('gotoSelectBtn').disabled = !o;
+  $('releaseBtn').disabled = !shooting;
+  if (!o) { $('activeBox').innerHTML = '<div class="empty">暂无服务中的订单，请先叫号</div>'; $('shootHint').textContent = ''; return; }
+  $('shootHint').textContent = `${o.queue_no} · ${o.spec.name}`;
+  const dots = Array.from({ length: o.max_rounds }, (_, i) =>
+    `<span class="dot ${i < o.round ? 'used' : 'cur'}"></span>`).join('');
+  $('activeBox').innerHTML = `
+    <div class="btn-row" style="justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div><b style="font-size:22px;">${o.queue_no}</b> ${statusBadge(o.status)}</div>
+      <div class="round-dots" title="拍摄轮次">${dots}<span class="small muted">第 ${o.round}/${o.max_rounds} 轮</span></div>
+    </div>
+    <div class="muted small" style="margin-bottom:10px;">候选 ${o.candidates.length} 张 · 眨眼废片自动重拍，不占用轮次</div>
+    <label class="small" style="display:flex;gap:14px;margin-bottom:12px;">
+      <span><input type="checkbox" id="simBlink"> 模拟眨眼</span>
+      <span><input type="checkbox" id="simSmall"> 模拟低像素片（规格不符演示）</span>
+    </label>
+    ${o.candidates.length ? `<div class="cand-grid">${o.candidates.map(c =>
+      `<div class="cand-cell"><img src="${fileUrl(c.file)}" alt=""><div class="meta">第 ${c.round} 轮</div></div>`).join('')}</div>` : ''}`;
+}
+
+$('shootBtn').onclick = async () => {
+  if (!activeOrder) return;
+  const simulate = $('simBlink') && $('simBlink').checked ? 'blink' : ($('simSmall') && $('simSmall').checked ? 'small' : undefined);
+  try {
+    const r = await api(`/api/orders/${activeOrder.id}/shoot`, { method: 'POST', body: { simulate } });
+    if (r.blinkOnly) toast(`检测到眨眼 ×${r.blinks}，已自动重拍，请再试`, 'err');
+    else ok(`第 ${r.round} 轮完成，新增候选 ${r.candidates.filter(c => c.round === r.round).length} 张${r.blinks ? `（眨眼重拍 ${r.blinks} 次）` : ''}`);
+    await loadActive(activeOrder.id);
+    refresh();
+  } catch (e) { err(e); }
+};
+
+$('finishBtn').onclick = async () => {
+  try {
+    await api(`/api/orders/${activeOrder.id}/finish-shooting`, { method: 'POST' });
+    ok('已进入选片');
+    await loadActive(activeOrder.id);
+  } catch (e) { err(e); }
+};
+
+$('gotoSelectBtn').onclick = () => {
+  if (activeOrder) location.href = `/select.html?order=${activeOrder.id}`;
+};
+
+$('releaseBtn').onclick = async () => {
+  try {
+    await api(`/api/orders/${activeOrder.id}/release`, { method: 'POST' });
+    ok('设备已释放，订单回到等待队列');
+    activeOrder = null;
+    refresh();
+  } catch (e) { err(e); }
+};
+
+function refresh() { renderDevices(); }
+loadMeta().then(refresh);
+setInterval(refresh, 4000);
+</script>
+</body>
+</html>

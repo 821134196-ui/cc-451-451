@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>取件核验 · 蓝证照相馆</title>
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="pickup-stage">
+    <h1 style="font-size:24px;">请输入 6 位取件码</h1>
+    <div class="code-display" id="display"></div>
+    <div class="keypad" id="keypad"></div>
+    <div class="pickup-result">
+      <div class="result-panel" id="result"></div>
+    </div>
+  </div>
+</div>
+<script src="/js/common.js"></script>
+<script>
+renderTopbar('取件核验');
+// 取件屏只保留大号数字键盘与结果提示
+const display = document.getElementById('display');
+const keypad = document.getElementById('keypad');
+const result = document.getElementById('result');
+let code = '';
+
+const KEYS = ['1','2','3','4','5','6','7','8','9','C','0','⌫'];
+keypad.innerHTML = KEYS.map(k =>
+  `<button class="key ${isNaN(k) ? 'fn' : ''}" data-k="${k}">${k === 'C' ? '清除' : k === '⌫' ? '删除' : k}</button>`).join('');
+
+function render() {
+  display.innerHTML = Array.from({ length: 6 }, (_, i) =>
+    `<div class="cell ${code[i] ? 'filled' : ''}">${code[i] || ''}</div>`).join('');
+}
+render();
+
+keypad.addEventListener('click', (e) => {
+  const k = e.target.dataset && e.target.dataset.k;
+  if (!k) return;
+  result.className = 'result-panel';
+  if (k === 'C') code = '';
+  else if (k === '⌫') code = code.slice(0, -1);
+  else if (code.length < 6) code += k;
+  render();
+  if (code.length === 6) verify();
+});
+
+async function verify() {
+  const current = code;
+  try {
+    const r = await api('/api/pickup/verify', { method: 'POST', body: { code: current } });
+    result.className = 'result-panel ok show';
+    result.innerHTML = `<div class="big">✓ 取件成功</div>
+      订单 <b>${r.queueNo}</b> · ${r.specName} · ${r.copies} 份<br>
+      <span class="small">核销时间 ${fmtTime(r.pickedUpAt)}</span>`;
+  } catch (e) {
+    result.className = 'result-panel err show';
+    result.innerHTML = `<div class="big">✗ 核验失败</div>${e.message}`;
+  }
+  setTimeout(() => { code = ''; render(); result.className = 'result-panel'; }, 4000);
+}
+</script>
+</body>
+</html>

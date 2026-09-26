@@ -1,0 +1,11 @@
+{
+  "name": "idphoto-store",
+  "version": "1.0.0",
+  "private": true,
+  "description": "自助证件照门店：拍摄重选与取件系统（零依赖 Node.js + SQLite）",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node --no-warnings src/server.js",
+    "test": "node --no-warnings --test test/*.test.js"
+  }
+}

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>叫号屏 · 蓝证照相馆</title>
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="wrap wide">
+  <div class="display-board">
+    <div class="card" style="text-align:center;padding:40px 20px;">
+      <div class="section-title">正在服务</div>
+      <div id="serving"><div class="empty">暂无叫号</div></div>
+    </div>
+    <div class="card">
+      <h2>等待队列 <span class="sub" id="waitCount"></span></h2>
+      <div id="waiting"></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px;">
+    <h2>设备状态</h2>
+    <div id="devices" class="btn-row"></div>
+  </div>
+</div>
+<script src="/js/common.js"></script>
+<script>
+renderTopbar('叫号屏');
+// 顶栏时钟
+const clock = document.createElement('span');
+clock.className = 'clock';
+document.querySelector('.topbar .spacer').before(clock);
+setInterval(() => clock.textContent = new Date().toLocaleTimeString('zh-CN', { hour12: false }), 1000);
+
+async function refresh() {
+  try {
+    const q = await api('/api/queue');
+    const serving = q.devices.filter(d => d.serving);
+    document.getElementById('serving').innerHTML = serving.length
+      ? serving.map(d => `
+          <div style="margin-bottom:18px;">
+            <div class="serving-no">${d.serving.queue_no}</div>
+            <div class="serving-device">请前往 ${d.name} 拍摄 · 第 ${d.serving.round}/${d.serving.max_rounds} 轮</div>
+          </div>`).join('')
+      : '<div class="empty">暂无叫号</div>';
+    document.getElementById('waitCount').textContent = `共 ${q.waiting.length} 人`;
+    document.getElementById('waiting').innerHTML = q.waiting.length
+      ? q.waiting.map(w => `
+          <div class="queue-item">
+            <span class="no">${w.queue_no}</span>
+            <span class="muted">${w.spec_name} · ${w.copies} 份</span>
+          </div>`).join('')
+      : '<div class="empty">暂无等待顾客</div>';
+    document.getElementById('devices').innerHTML = q.devices.map(d => {
+      const led = d.status !== 'online' ? 'off' : (d.serving ? 'busy' : 'on');
+      const txt = d.status !== 'online' ? '离线' : (d.serving ? '服务中' : '空闲');
+      return `<span class="device-chip"><span class="led ${led}"></span>${d.name} · ${txt}</span>`;
+    }).join('');
+  } catch (e) { /* 轮询容错 */ }
+}
+refresh();
+setInterval(refresh, 2000);
+</script>
+</body>
+</html>

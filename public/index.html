@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>蓝证照相馆 · 系统导航</title>
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="wrap">
+  <h1 style="margin:14px 0 4px;font-size:26px;">蓝证照相馆 · 自助证件照系统</h1>
+  <p class="muted" style="margin-bottom:22px;">拍摄重选 → 候选确认 → 修正 → 冲印 → 取件，全流程门店终端。右上角可切换操作角色。</p>
+  <div class="grid cols-4" id="tiles"></div>
+  <div class="card" style="margin-top:20px;">
+    <h2>当前门店状态 <span class="sub">每 3 秒自动刷新</span></h2>
+    <div id="devState" class="btn-row"></div>
+    <div id="queueBrief" class="muted small" style="margin-top:10px;"></div>
+  </div>
+</div>
+<script src="/js/common.js"></script>
+<script>
+renderTopbar('系统导航');
+const TILES = [
+  ['display.html', '📺', '叫号屏', '大厅叫号与等待队列展示'],
+  ['terminal.html', '📷', '拍摄终端', '开单取号、叫号、拍摄与重拍'],
+  ['select.html', '🖼️', '候选选择', '候选网格、规格预览与裁切确认'],
+  ['retouch.html', '✨', '修正队列', '修图人员处理待修正订单'],
+  ['print.html', '🖨️', '冲印任务', '冲印、缺纸重试与加印'],
+  ['pickup.html', '🔢', '取件核验', '取件码核验（大号数字键盘）'],
+  ['refunds.html', '💳', '退款复核', '店员发起、店长审核退款'],
+];
+document.getElementById('tiles').innerHTML = TILES.map(([href, icon, t, d]) => `
+  <a class="nav-tile" href="/${href}">
+    <div class="icon">${icon}</div>
+    <div class="t">${t}</div>
+    <div class="d">${d}</div>
+  </a>`).join('');
+
+async function refresh() {
+  try {
+    const q = await api('/api/queue');
+    document.getElementById('devState').innerHTML = q.devices.map(d => {
+      const led = d.status !== 'online' ? 'off' : (d.serving ? 'busy' : 'on');
+      const txt = d.status !== 'online' ? '离线' : (d.serving ? `服务中 ${d.serving.queue_no}` : '空闲');
+      return `<span class="device-chip"><span class="led ${led}"></span>${d.name} · ${txt}</span>`;
+    }).join('');
+    document.getElementById('queueBrief').textContent =
+      q.waiting.length ? `等待 ${q.waiting.length} 人：${q.waiting.map(w => w.queue_no).join('、')}` : '当前无等待顾客';
+  } catch (e) { /* 忽略瞬时错误 */ }
+}
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>

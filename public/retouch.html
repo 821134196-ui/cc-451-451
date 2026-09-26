@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>修正队列 · 蓝证照相馆</title>
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h2>待修正订单 <span class="sub">修图人员不可查看付款明细</span></h2>
+    <div id="list"></div>
+  </div>
+</div>
+<script src="/js/common.js"></script>
+<script>
+renderTopbar('修正队列');
+const $ = (id) => document.getElementById(id);
+
+async function load() {
+  let tasks;
+  try { tasks = await api('/api/retouch/queue'); }
+  catch (e) { $('list').innerHTML = `<div class="empty">${e.message}（请切换为修图人员/店长角色）</div>`; return; }
+  if (!tasks.length) { $('list').innerHTML = '<div class="empty">队列已清空</div>'; return; }
+  $('list').innerHTML = `<table class="list"><thead>
+    <tr><th>订单</th><th>规格</th><th>裁切版</th><th>份数</th><th>状态</th><th>操作</th></tr></thead>
+    <tbody>${tasks.map(t => `
+      <tr>
+        <td><b>${t.queue_no}</b></td>
+        <td>${t.spec_name} · ${t.width_mm}×${t.height_mm}mm</td>
+        <td>${t.crop_file ? `<img class="thumb" src="${fileUrl(t.crop_file)}" alt="">` : '—'}</td>
+        <td>${t.copies}</td>
+        <td>${t.status === 'PENDING' ? '<span class="badge warn">待修正</span>' : `<span class="badge blue">修正中 · ${t.assignee || ''}</span>`}</td>
+        <td class="btn-row">
+          ${t.status === 'PENDING' ? `<button class="btn btn-ghost" onclick="claim('${t.id}')">开始修正</button>` : ''}
+          <button class="btn btn-primary" onclick="complete('${t.id}')">完成修正</button>
+        </td>
+      </tr>`).join('')}</tbody></table>`;
+}
+
+window.claim = async (tid) => {
+  try { await api(`/api/retouch/${tid}/claim`, { method: 'POST' }); ok('已认领'); load(); }
+  catch (e) { err(e); }
+};
+window.complete = async (tid) => {
+  try {
+    const r = await api(`/api/retouch/${tid}/complete`, { method: 'POST' });
+    if (r.printTask.status === 'SUCCESS') ok('修正完成，冲印成功，订单已可取件');
+    else if (r.printTask.status === 'FAILED') toast(`修正完成，但冲印失败：${r.printTask.fail_reason === 'OUT_OF_PAPER' ? '打印机缺纸' : r.printTask.fail_reason}，将自动重试`, 'err');
+    else ok('修正完成，已入冲印队列');
+    load();
+  } catch (e) { err(e); }
+};
+
+load();
+setInterval(load, 4000);
+</script>
+</body>
+</html>

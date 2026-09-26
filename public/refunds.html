@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>退款复核 · 蓝证照相馆</title>
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="wrap wide">
+  <div class="grid" style="grid-template-columns: 360px 1fr; align-items:start;">
+    <div class="card">
+      <h2>发起退款 <span class="sub">店员 · 误操作等</span></h2>
+      <div class="field">
+        <label>选择订单</label>
+        <select id="orderSel"></select>
+      </div>
+      <div class="field">
+        <label>退款原因</label>
+        <input id="reason" value="误操作" placeholder="必填">
+      </div>
+      <button class="btn btn-primary" id="createBtn" style="width:100%;">提交退款申请</button>
+      <div class="muted small" style="margin-top:10px;">退款须店长复核；批准后原路退回并作废取件码。重复提交/重复审批不会产生重复退款。</div>
+    </div>
+    <div class="card">
+      <h2>复核列表 <span class="sub">批准/驳回需店长角色</span></h2>
+      <div id="list"></div>
+    </div>
+  </div>
+</div>
+<script src="/js/common.js"></script>
+<script>
+renderTopbar('退款复核');
+const $ = (id) => document.getElementById(id);
+
+const RF_STATUS = { PENDING: ['待复核', 'warn'], APPROVED: ['已退款', 'ok'], REJECTED: ['已驳回', 'bad'] };
+
+async function load() {
+  try {
+    const [orders, refunds] = await Promise.all([api('/api/orders'), api('/api/refunds')]);
+    const refundable = orders.filter(o => !['REFUNDED'].includes(o.status) && !o.refund);
+    $('orderSel').innerHTML = refundable.length
+      ? refundable.map(o => `<option value="${o.id}">${o.queue_no} · ${o.spec.name} · ${fmtYuan(o.payment ? o.payment.amountCents : 0)}</option>`).join('')
+      : '<option value="">暂无可退款订单</option>';
+    $('list').innerHTML = refunds.length ? `<table class="list"><thead>
+      <tr><th>订单</th><th>原因</th><th>金额</th><th>状态</th><th>退款单号</th><th>操作</th></tr></thead>
+      <tbody>${refunds.map(r => {
+        const [label, color] = RF_STATUS[r.status];
+        const o = orders.find(x => x.id === r.order_id);
+        return `<tr>
+          <td><b>${r.queue_no}</b><div class="small muted">${r.spec_name}</div></td>
+          <td>${r.reason}<div class="small muted">发起人：${r.requested_by || '—'}</div></td>
+          <td>${o && o.payment ? fmtYuan(o.payment.amountCents) : '—'}</td>
+          <td><span class="badge ${color}">${label}</span></td>
+          <td class="mono small">${r.refund_no || '—'}</td>
+          <td class="btn-row">
+            ${r.status === 'PENDING' ? `
+              <button class="btn btn-ok" style="padding:6px 14px;" onclick="decide('${r.id}', true)">同意退款</button>
+              <button class="btn btn-ghost" style="padding:6px 14px;" onclick="decide('${r.id}', false)">驳回</button>` : ''}
+          </td>
+        </tr>`; }).join('')}</tbody></table>` : '<div class="empty">暂无退款申请</div>';
+  } catch (e) { $('list').innerHTML = `<div class="empty">${e.message}</div>`; }
+}
+
+$('createBtn').onclick = async () => {
+  const oid = $('orderSel').value;
+  if (!oid) return err('没有可退款的订单');
+  try {
+    await api(`/api/orders/${oid}/refund-requests`, { method: 'POST', body: { reason: $('reason').value } });
+    ok('退款申请已提交，待店长复核');
+    load();
+  } catch (e) { err(e); }
+};
+
+window.decide = async (rid, approve) => {
+  try {
+    const r = await api(`/api/refunds/${rid}/${approve ? 'approve' : 'reject'}`, { method: 'POST' });
+    ok(approve ? `已退款：${r.refund.refund_no}` : '已驳回');
+    load();
+  } catch (e) { err(e); load(); }
+};
+
+load();
+setInterval(load, 4000);
+</script>
+</body>
+</html>

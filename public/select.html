@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>候选选择 · 蓝证照相馆</title>
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="wrap wide">
+  <div id="head"></div>
+  <div class="grid" style="grid-template-columns: 1fr 380px; align-items:start;">
+    <div class="card">
+      <h2>候选照片 <span class="sub">同尺寸网格 · 原片无滤镜</span></h2>
+      <div id="candGrid"></div>
+    </div>
+    <div class="grid" style="gap:16px;">
+      <div class="card">
+        <h2>规格预览 <span class="sub">毫米尺寸 · 裁切安全线</span></h2>
+        <div id="preview"><div class="empty">请选择一张候选照片</div></div>
+        <div class="spec-caption" id="specCaption"></div>
+        <div class="nudge-pad" id="nudgePad" style="display:none;">
+          <span></span><button class="btn btn-ghost" data-dx="0" data-dy="-30">↑</button><span></span>
+          <button class="btn btn-ghost" data-dx="-30" data-dy="0">←</button>
+          <button class="btn btn-ghost" id="nudgeReset">⌂</button>
+          <button class="btn btn-ghost" data-dx="30" data-dy="0">→</button>
+          <span></span><button class="btn btn-ghost" data-dx="0" data-dy="30">↓</button><span></span>
+        </div>
+        <button class="btn btn-primary btn-lg" id="confirmBtn" style="width:100%;" disabled>确认选定此照片</button>
+        <div class="muted small" style="margin-top:8px;text-align:center;">确认后生成裁切版并进入修正队列；双终端同时确认时以首个为准。</div>
+      </div>
+      <div class="card" id="staffCard" style="display:none;">
+        <h2>店员操作</h2>
+        <button class="btn btn-ghost" id="reopenBtn" style="width:100%;">重开选择（需填写原因）</button>
+        <div class="muted small" style="margin-top:8px;">已冲印订单不可改选原片，仅可创建加印任务。</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+renderTopbar('候选选择');
+const $ = (id) => document.getElementById(id);
+const orderId = new URLSearchParams(location.search).get('order');
+const terminalId = 'T-' + (localStorage.getItem('idphoto-terminal') || (() => {
+  const t = Math.random().toString(36).slice(2, 6).toUpperCase();
+  localStorage.setItem('idphoto-terminal', t); return t;
+})());
+
+let order = null;
+let selected = null;   // 当前选中的候选
+let crop = null;       // 当前裁切框（源图像素）
+
+function autoCrop(cand, spec) {
+  const aspect = spec.width_mm / spec.height_mm;
+  let w = cand.width_px, h = Math.round(w / aspect);
+  if (h > cand.height_px) { h = cand.height_px; w = Math.round(h * aspect); }
+  return { x: Math.round((cand.width_px - w) / 2), y: Math.round((cand.height_px - h) / 2), w, h };
+}
+
+async function load() {
+  if (!orderId) { $('head').innerHTML = '<div class="card empty">缺少 order 参数，请从拍摄终端进入</div>'; return; }
+  try {
+    order = await api(`/api/orders/${orderId}`);
+  } catch (e) { $('head').innerHTML = `<div class="card empty">${e.message}</div>`; return; }
+  renderHead(); renderGrid(); renderPreview();
+  const canAct = ['SELECTING'].includes(order.status);
+  $('staffCard').style.display = ['staff', 'manager'].includes(getRole()) ? '' : 'none';
+  $('reopenBtn').disabled = !['SELECTING', 'RETOUCH_PENDING'].includes(order.status);
+  if (!canAct && order.status !== 'SELECTING' && order.selected_candidate_id) {
+    // 已确认：展示已选结果
+    selected = order.candidates.find(c => c.id === order.selected_candidate_id) || null;
+    crop = order.crop_json ? JSON.parse(order.crop_json) : null;
+    renderGrid(); renderPreview();
+  }
+}
+
+function renderHead() {
+  $('head').innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <div class="btn-row" style="justify-content:space-between;align-items:center;">
+        <div><b style="font-size:22px;">${order.queue_no}</b> ${statusBadge(order.status)}</div>
+        <div class="muted">${order.spec.name} · ${order.spec.width_mm}×${order.spec.height_mm}mm · 冲印 ${order.copies} 份</div>
+      </div>
+    </div>`;
+}
+
+function renderGrid() {
+  const grid = $('candGrid');
+  if (!order.candidates.length) { grid.innerHTML = '<div class="empty">暂无候选照片，请先在拍摄终端拍摄</div>'; return; }
+  grid.innerHTML = `<div class="cand-grid">${order.candidates.map(c => `
+    <button class="cand-cell ${selected && selected.id === c.id ? 'selected' : ''}" data-id="${c.id}">
+      <img src="${fileUrl(c.file)}" alt="候选 ${c.round}">
+      <div class="meta">第 ${c.round} 轮 · ${c.width_px}×${c.height_px}px</div>
+    </button>`).join('')}</div>`;
+  grid.querySelectorAll('.cand-cell').forEach(el => {
+    el.onclick = () => {
+      selected = order.candidates.find(c => c.id === el.dataset.id);
+      crop = autoCrop(selected, order.spec);
+      renderGrid(); renderPreview();
+    };
+  });
+}
+
+function renderPreview() {
+  const box = $('preview');
+  const canConfirm = order.status === 'SELECTING' && selected;
+  $('confirmBtn').disabled = !canConfirm;
+  $('nudgePad').style.display = selected ? '' : 'none';
+  if (!selected) { box.innerHTML = '<div class="empty">请选择一张候选照片</div>'; $('specCaption').innerHTML = ''; return; }
+  const s = order.spec;
+  const pct = (v, total) => (v / total * 100).toFixed(3) + '%';
+  box.innerHTML = `
+    <div class="spec-preview">
+      <img src="${fileUrl(selected.file)}" alt="预览">
+      <div class="crop-rect" style="left:${pct(crop.x, selected.width_px)};top:${pct(crop.y, selected.height_px)};width:${pct(crop.w, selected.width_px)};height:${pct(crop.h, selected.height_px)};">
+        <div class="safe"></div>
+        <span class="safe-label">安全线</span>
+      </div>
+    </div>`;
+  $('specCaption').innerHTML =
+    `<b>${s.name} ${s.width_mm}mm × ${s.height_mm}mm</b><br>` +
+    `裁切 ${crop.w}×${crop.h}px · 要求 ≥ ${s.px_width}×${s.px_height}px（300dpi）`;
+}
+
+document.querySelectorAll('#nudgePad [data-dx]').forEach(btn => {
+  btn.onclick = () => {
+    if (!crop) return;
+    crop = { ...crop, x: crop.x + Number(btn.dataset.dx), y: crop.y + Number(btn.dataset.dy) };
+    renderPreview();
+  };
+});
+$('nudgeReset').onclick = () => { if (selected) { crop = autoCrop(selected, order.spec); renderPreview(); } };
+
+$('confirmBtn').onclick = async () => {
+  try {
+    await api(`/api/orders/${orderId}/confirm`, {
+      method: 'POST',
+      body: { candidateId: selected.id, crop, terminalId },
+    });
+    ok('已确认，进入修正队列');
+    await load();
+  } catch (e) {
+    if (e.code === 'ALREADY_CONFIRMED') { err('另一终端已先行确认，以首次确认为准'); await load(); }
+    else err(e);
+  }
+};
+
+$('reopenBtn').onclick = async () => {
+  const reason = prompt('请填写重开选择的原因（必填）：');
+  if (reason === null) return;
+  try {
+    await api(`/api/orders/${orderId}/reopen`, { method: 'POST', body: { reason } });
+    ok('已重开选择');
+    selected = null; crop = null;
+    await load();
+  } catch (e) { err(e); }
+};
+
+load();
+setInterval(load, 5000);
+</script>
+</body>
+</html>
