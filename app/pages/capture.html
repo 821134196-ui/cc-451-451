@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>拍摄终端 · 自助证件照</title>
+<link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body class="has-dock">
+<main>
+  <h1>拍摄终端</h1>
+  <div class="card" style="max-width:720px">
+    <div class="row">
+      <div class="field" style="flex:1">
+        <label>排队号 / 订单号</label>
+        <input id="order-input" placeholder="如 0926-001 或订单 ID" style="width:100%">
+      </div>
+      <button onclick="enterOrder()">进入</button>
+    </div>
+    <div id="order-info" class="muted">请输入排队号开始拍摄。叫号后拍摄设备已锁定给该号。</div>
+  </div>
+
+  <h2>本单候选（同尺寸网格，不叠加滤镜）</h2>
+  <div id="cand" class="photo-grid" style="grid-template-columns:repeat(3,minmax(0,1fr));max-width:760px"></div>
+  <div id="hint" class="muted" style="margin-top:12px"></div>
+</main>
+
+<div class="capture-dock">
+  <button class="secondary" id="btn-blink" onclick="toggleBlink()">模拟眨眼：关</button>
+  <button id="btn-shoot" onclick="shoot()" disabled>拍摄一张</button>
+  <button id="btn-select" class="ghost" onclick="goSelect()" disabled>去候选选择</button>
+</div>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/capture.js"></script>
+</body>
+</html>

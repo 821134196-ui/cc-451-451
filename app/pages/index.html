@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>开单首页 · 自助证件照</title>
+<link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+<main>
+  <h1>门店开单与总览</h1>
+  <div class="grid cards-2">
+    <section class="card">
+      <h3>叫号开单（锁定拍摄设备 · 模拟付款）</h3>
+      <div class="field"><label>顾客姓名</label><input id="f-name" value="张同学"></div>
+      <div class="row">
+        <div class="field" style="flex:1"><label>证件规格</label><select id="f-spec"></select></div>
+        <div class="field" style="flex:1"><label>拍摄设备</label><select id="f-device"></select></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>冲印份数</label>
+          <input id="f-copies" type="number" min="1" value="1" style="width:90px"></div>
+        <div class="field"><label>&nbsp;</label>
+          <label style="margin:0"><input id="f-retouch" type="checkbox"> 需要人工修正</label></div>
+      </div>
+      <button id="btn-call">叫号并锁定设备</button>
+      <p class="muted">叫号后设备锁定，顾客在拍摄终端凭排队号进入；付款由模拟适配器即时回执。</p>
+    </section>
+
+    <section class="card">
+      <h3>设备面板（离线 / 缺纸模拟）</h3>
+      <table>
+        <thead><tr><th>设备</th><th>类型</th><th>状态</th><th>纸张/占用</th><th>操作</th></tr></thead>
+        <tbody id="dev-rows"></tbody>
+      </table>
+      <p class="muted">把拍摄亭置为离线可模拟“设备离线”路径；冲印机缺纸会触发后台打印重试。</p>
+    </section>
+  </div>
+
+  <h2>订单状态（SQLite）</h2>
+  <table>
+    <thead><tr><th>ID</th><th>排队号</th><th>顾客</th><th>规格</th><th>份数</th><th>轮次</th>
+      <th>金额</th><th>状态</th><th>取件码</th><th>操作</th></tr></thead>
+    <tbody id="order-rows"></tbody>
+  </table>
+</main>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/index.js"></script>
+</body>
+</html>

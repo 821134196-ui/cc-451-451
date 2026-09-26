@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>退款复核 · 自助证件照</title>
+<link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+<main>
+  <h1>退款复核 <span class="muted" style="font-size:14px">（店员发起 · 店长审核 · 幂等）</span></h1>
+
+  <div class="grid cards-2">
+    <section class="card">
+      <h3>店员发起退款（误操作退款路径）</h3>
+      <div class="row">
+        <div class="field" style="flex:1"><label>订单 ID</label><input id="rf-order" style="width:100%"></div>
+        <div class="field"><label>退款金额（分）</label><input id="rf-amount" value="2500" style="width:120px"></div>
+      </div>
+      <div class="field"><label>发起人</label><input id="rf-by" value="前台店员" style="width:200px"></div>
+      <div class="field"><label>退款原因（必填）</label>
+        <input id="rf-reason" placeholder="如：顾客误操作下单、设备故障无法拍摄" style="width:100%"></div>
+      <button onclick="requestRefund()">提交退款申请</button>
+      <p class="muted">相同业务请求重复提交不会产生两张单（幂等键 = 订单+金额+发起人）。</p>
+    </section>
+
+    <section class="card">
+      <h3>店长审核</h3>
+      <div class="field"><label>当班店长</label><input id="mgr" value="王店长" style="width:200px"></div>
+      <p class="muted">只有店长审核通过后才会调用付款适配器退回；修图人员无此页面权限所需的付款信息。
+        通道超时时可再次点“通过”，不会重复打款。</p>
+    </section>
+  </div>
+
+  <h2>退款单</h2>
+  <table>
+    <thead><tr><th>单号</th><th>订单</th><th>金额</th><th>原因</th><th>发起人</th>
+      <th>店长</th><th>状态</th><th>付款回执</th><th>操作</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</main>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/refund.js"></script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>修正队列 · 自助证件照</title>
+<link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+<main>
+  <h1>人工修正队列 <span class="muted" style="font-size:14px">（修图人员视图：不展示付款明细）</span></h1>
+  <div class="card">
+    <div class="row">
+      <div class="field" style="margin:0">
+        <label>当前修图人员（审计记录）</label>
+        <input id="retoucher" value="修图员小李" style="width:200px">
+      </div>
+      <button class="ghost" onclick="load()">刷新队列</button>
+    </div>
+  </div>
+  <div id="queue" class="grid" style="margin-top:14px"></div>
+</main>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/retouch.js"></script>
+</body>
+</html>

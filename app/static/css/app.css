@@ -1,0 +1,147 @@
+:root {
+  --white: #F5F6F8;
+  --card: #FFFFFF;
+  --graphite: #22262B;
+  --graphite-soft: #5A616B;
+  --line: #D9DEE5;
+  --blue: #1F4E8C;
+  --blue-soft: #E4ECF5;
+  --ok: #2E7D46;
+  --warn: #B5740A;
+  --err: #B3352B;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--white);
+  color: var(--graphite);
+  font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 15px;
+}
+header.topbar {
+  background: var(--graphite);
+  color: #fff;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+header.topbar a { color: #C8D2DE; text-decoration: none; font-size: 14px; }
+header.topbar a:hover { color: #fff; }
+header.topbar .brand { color: #fff; font-weight: 700; font-size: 17px; }
+header.topbar .brand span { color: #6FA0D6; }
+
+main { max-width: 1180px; margin: 0 auto; padding: 22px 24px 60px; }
+
+h1 { font-size: 21px; margin: 4px 0 16px; }
+h2 { font-size: 16px; margin: 24px 0 10px; }
+.grid { display: grid; gap: 14px; }
+.cards-3 { grid-template-columns: repeat(3, 1fr); }
+.cards-2 { grid-template-columns: repeat(2, 1fr); }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card h3 { margin: 0 0 10px; font-size: 15px; }
+
+table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); font-size: 14px; vertical-align: middle; }
+th { background: #EEF1F5; color: var(--graphite-soft); font-weight: 600; }
+tr:last-child td { border-bottom: none; }
+
+button, .btn {
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 15px;
+  cursor: pointer;
+}
+button:hover { filter: brightness(1.08); }
+button.secondary { background: var(--graphite); }
+button.ghost { background: #fff; color: var(--blue); border: 1px solid var(--blue); }
+button.danger { background: var(--err); }
+button:disabled { background: #AAB2BC; cursor: not-allowed; }
+
+input, select, textarea {
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 15px;
+  background: #fff;
+  color: var(--graphite);
+  font-family: inherit;
+}
+label { font-size: 13px; color: var(--graphite-soft); display: block; margin-bottom: 4px; }
+.field { margin-bottom: 12px; }
+.row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+
+.badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.badge.online, .badge.done, .badge.completed, .badge.picked, .badge.ok { background: #E2F1E7; color: var(--ok); }
+.badge.busy, .badge.printing, .badge.retouching, .badge.selected { background: var(--blue-soft); color: var(--blue); }
+.badge.offline, .badge.failed, .badge.cancelled, .badge.err { background: #F8E4E2; color: var(--err); }
+.badge.out_of_paper, .badge.failed_no_paper, .badge.queued, .badge.pending, .badge.warn { background: #FBEFD9; color: var(--warn); }
+
+#toast {
+  position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+  background: var(--graphite); color: #fff; padding: 12px 22px; border-radius: 10px;
+  display: none; z-index: 100; max-width: 80%; box-shadow: 0 6px 24px rgba(0,0,0,.25);
+}
+#toast.err { background: var(--err); }
+#toast.ok { background: var(--ok); }
+
+/* 候选照片：同尺寸网格、不叠加滤镜 */
+.photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.photo-cell {
+  background: var(--card); border: 2px solid var(--line); border-radius: 10px;
+  padding: 10px; cursor: pointer; text-align: center;
+}
+.photo-cell.chosen { border-color: var(--blue); background: var(--blue-soft); }
+.photo-cell img {
+  width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 6px;
+  display: block; /* 无滤镜：不使用 filter/overlay */
+}
+.photo-cell .meta { margin-top: 8px; font-size: 13px; color: var(--graphite-soft); }
+
+/* 拍摄终端：操作按钮固定屏幕下方 */
+.capture-dock {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  background: var(--card); border-top: 1px solid var(--line);
+  padding: 14px 24px; display: flex; gap: 14px; justify-content: center; z-index: 50;
+}
+.capture-dock button { min-width: 180px; padding: 15px 24px; font-size: 17px; }
+body.has-dock main { padding-bottom: 110px; }
+
+/* 规格预览：毫米尺寸与裁切安全线 */
+.preview-stage { position: relative; width: 360px; max-width: 100%; margin: 0 auto; }
+.preview-stage img.raw { width: 100%; display: block; border-radius: 8px; }
+.crop-line {
+  position: absolute; border: 2px solid var(--blue); box-shadow: 0 0 0 9999px rgba(34,38,43,.18);
+}
+.safe-line { position: absolute; border: 1px dashed #fff; }
+.safe-line-inner { position: absolute; border: 1px dashed rgba(31,78,140,.7); }
+.dim-h, .dim-v { position: absolute; color: var(--blue); font-weight: 700; font-size: 13px; background: rgba(255,255,255,.85); padding: 1px 6px; border-radius: 4px; }
+
+/* 取件屏：仅大号数字键盘与结果提示 */
+.pickup-wrap { max-width: 520px; margin: 4vh auto 0; text-align: center; }
+.pickup-code {
+  font-size: 46px; letter-spacing: 12px; text-align: center; font-weight: 700;
+  border: 2px solid var(--blue); border-radius: 14px; padding: 14px; width: 100%;
+  color: var(--graphite);
+}
+.keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
+.keypad button { font-size: 30px; padding: 22px 0; border-radius: 12px; }
+.keypad button.act { font-size: 18px; }
+.pickup-result { margin-top: 20px; font-size: 19px; min-height: 56px; border-radius: 10px; padding: 14px; }
+.pickup-result.ok { background: #E2F1E7; color: var(--ok); }
+.pickup-result.err { background: #F8E4E2; color: var(--err); }
+
+.muted { color: var(--graphite-soft); font-size: 13px; }
+.mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+.thumb { width: 74px; height: 98px; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); }
+.flags { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }

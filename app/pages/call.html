@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>叫号屏 · 自助证件照</title>
+<link rel="stylesheet" href="/static/css/app.css">
+<style>
+  .board { display:grid; grid-template-columns: 2fr 1fr; gap:18px; margin-top:10px; }
+  .big-queue { font-size:64px; font-weight:800; color:var(--blue); letter-spacing:2px; }
+  .queue-card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 22px; margin-bottom:12px;
+    display:flex; align-items:center; justify-content:space-between; }
+  .queue-card .who { font-size:22px; font-weight:600; }
+  .dev-dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>叫号屏</h1>
+  <div class="board">
+    <section>
+      <h2 style="margin-top:0">正在拍摄 / 处理</h2>
+      <div id="current"></div>
+    </section>
+    <section class="card">
+      <h3>拍摄设备</h3>
+      <div id="cams" style="font-size:16px; line-height:2.1"></div>
+      <h3>最近完成</h3>
+      <div id="recent" class="muted" style="line-height:1.9"></div>
+    </section>
+  </div>
+</main>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/call.js"></script>
+</body>
+</html>

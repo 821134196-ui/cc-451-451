@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>候选选择 · 自助证件照</title>
+<link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+<main>
+  <h1>候选选择</h1>
+  <div class="card" style="margin-bottom:16px">
+    <div class="row">
+      <div class="field" style="flex:1">
+        <label>排队号 / 订单号</label>
+        <input id="order-input" placeholder="如 0926-001 或订单 ID" style="width:100%">
+      </div>
+      <button onclick="enterOrder()">进入</button>
+    </div>
+    <div id="info" class="muted"></div>
+    <div id="confirm-state" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <h3>候选照片（同尺寸网格 · 无滤镜）</h3>
+    <div id="grid" class="photo-grid"></div>
+    <div class="row" style="margin-top:16px;justify-content:space-between">
+      <div class="muted" id="pick-hint">点击一张候选进行选定。</div>
+      <div class="row">
+        <a class="btn ghost" id="preview-link" href="#" target="_blank">规格预览（毫米尺寸 / 安全线）</a>
+        <button id="btn-confirm" onclick="confirmPick()" disabled>确认所选</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="staff-card" style="margin-top:16px;display:none">
+    <h3>店员操作：重开顾客选择（必须填写原因）</h3>
+    <div class="row">
+      <input id="staff-name" placeholder="店员姓名" value="店员甲" style="width:140px">
+      <input id="reopen-reason" placeholder="重开原因（必填），如：顾客发现闭眼选错" style="flex:1;min-width:240px">
+      <button class="danger" onclick="reopen()">重开选择</button>
+    </div>
+    <p class="muted">已冲印订单不能改选原片，系统会拒绝并引导至“加印”。</p>
+  </div>
+</main>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/select.js"></script>
+</body>
+</html>

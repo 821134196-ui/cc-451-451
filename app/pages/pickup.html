@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>取件核验 · 自助证件照</title>
+<link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+<main class="pickup-wrap">
+  <h1 style="font-size:26px">取件核验</h1>
+  <input class="pickup-code mono" id="code" inputmode="numeric" maxlength="6"
+         readonly placeholder="------" aria-label="取件码">
+  <div class="keypad">
+    <button onclick="key('1')">1</button><button onclick="key('2')">2</button><button onclick="key('3')">3</button>
+    <button onclick="key('4')">4</button><button onclick="key('5')">5</button><button onclick="key('6')">6</button>
+    <button onclick="key('7')">7</button><button onclick="key('8')">8</button><button onclick="key('9')">9</button>
+    <button class="secondary act" onclick="clearCode()">清空</button>
+    <button onclick="key('0')">0</button>
+    <button class="danger act" onclick="verify()">取件</button>
+  </div>
+  <div id="result" class="pickup-result">请输入 6 位取件码</div>
+  <p class="muted" style="margin-top:14px">取件码 24 小时有效，过期或失效请至柜台由店员重新签发。</p>
+  <div style="margin-top:8px"><a href="/" class="muted">返回首页</a></div>
+</main>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/pickup.js"></script>
+</body>
+</html>

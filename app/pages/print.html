@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>冲印任务 · 自助证件照</title>
+<link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+<main>
+  <h1>冲印任务</h1>
+  <div class="grid cards-2">
+    <section class="card">
+      <h3>冲印机状态</h3>
+      <table>
+        <thead><tr><th>设备</th><th>状态</th><th>纸张</th><th>模拟</th></tr></thead>
+        <tbody id="dev-rows"></tbody>
+      </table>
+      <p class="muted">缺纸任务进入失败重试，后台每 5 秒自动重试，最多 3 次；加纸后自动成功。
+        “卡纸”模拟打印中途失败，同样走重试路径。</p>
+    </section>
+    <section class="card">
+      <h3>创建加印任务（仅已冲印订单）</h3>
+      <div class="row">
+        <input id="rp-order" placeholder="订单 ID" style="width:120px">
+        <input id="rp-copies" type="number" min="1" value="1" style="width:90px">
+        <input id="rp-staff" value="店员乙" style="width:120px">
+        <button onclick="reprint()">创建加印</button>
+      </div>
+      <p class="muted">已冲印订单不能改选原片；加印任务关联原冲印任务（parent 字段）。</p>
+      <div class="row">
+        <button class="ghost" onclick="tick()">立即执行后台扫描</button>
+        <span id="tick-out" class="muted"></span>
+      </div>
+    </section>
+  </div>
+
+  <h2>任务列表</h2>
+  <table>
+    <thead><tr><th>任务</th><th>订单</th><th>类型</th><th>关联原任务</th><th>份数</th>
+      <th>尝试</th><th>状态</th><th>错误</th><th>操作</th></tr></thead>
+    <tbody id="job-rows"></tbody>
+  </table>
+</main>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/print.js"></script>
+</body>
+</html>
